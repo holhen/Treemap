@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Treemap</title>
+    <style>
+      h1, p {
+        text-align: center;
+      }
+    </style>
+</head>
+<body>
+    <h1 id="title"> Video Game Sales</h1>
+    <p id="description">Top 100 Most Sold Video Games Grouped by Platform</p>
+    <div id="my_dataviz"></div>
+    <svg id='legend' width="500"></svg>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v0.4.min.js"></script>
+    <script>
+        var margin = {top: 10, right: 10, bottom: 10, left: 10},
+  width = 1500 - margin.left - margin.right,
+  height = 800 - margin.top - margin.bottom;
+
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+.append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+.append("g")
+  .attr("transform",
+        "translate(" + margin.left + "," + margin.top + ")");
+
+// read json data
+d3.json("https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/video-game-sales-data.json", function(data) {
+
+  // Give the data to this cluster layout:
+  var root = d3.hierarchy(data).sum(function(d){ return d.value}).sort((a, b) => b.value - a.value) // Here the size of each leave is given in the 'value' field in input data
+
+  // Then d3.treemap computes the position of each element of the hierarchy
+  d3.treemap()
+    .size([width, height])
+    /*.paddingTop(28)
+    .paddingRight(7)
+    .paddingInner(3)      // Padding between each rectangle
+    //.paddingOuter(6)
+    //.padding(20)*/
+    (root)
+
+  // prepare a color scale
+  var color = d3.scaleOrdinal().range(d3.schemeCategory20)
+
+  var categories = data.children.map((d) => d.name);
+
+  let tooltip = d3.select('body').append('div')
+                    tooltip.styles({
+                        'position' : 'absolute',
+                        'padding' : '4px',
+                        'background' : '#fff',
+                        'border': '1px solid #000',
+                        'color':'#000'
+                        });
+
+                function mouseoverHandler(d) {
+                tooltip.transition().style('opacity', .8)
+                tooltip.styles({
+                            'left' : (event.pageX + 10) + 'px',
+                            'top' : (event.pageY + 15) + 'px'
+                            })
+                tooltip.html(`<p> Name: ${d.data.name} </p>
+                              <p> Category: ${d.data.category} </p>
+                              <p> Value: ${d.data.value} `)
+                        .attr("data-value", d.data.value)
+                        .attr("id", "tooltip")
+                    
+                d3.select(this)
+                    .style('opacity', .1);
+                }
+
+                function mouseoutHandler(d) {
+                    tooltip.transition().style('opacity', 0)  
+                    d3.select(this)
+                    .style('opacity', 1);
+                }
+
+                function mouseMoving (d) {
+                    tooltip.style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px");
+                    d3.select(this)
+                    .style('opacity', 0.8);
+                }
+  
+  // use this information to add rectangles:
+  svg
+    .selectAll("rect")
+    .data(root.leaves())
+    .enter()
+    .append("rect")
+      .attr('x', function (d) { return d.x0; })
+      .attr('y', function (d) { return d.y0; })
+      .attr('width', function (d) { return d.x1 - d.x0; })
+      .attr('height', function (d) { return d.y1 - d.y0; })
+      .attr("data-name", d => d.data.name)
+      .attr("data-category", d => d.data.category)
+      .attr("data-value", d => d.data.value)
+      .style("stroke", "black")
+      .style("fill", function(d){ return color(d.parent.data.name)})
+      .classed("tile", true)
+      .on('mouseover', mouseoverHandler)
+      .on("mousemove",mouseMoving)
+      .on("mouseout", mouseoutHandler);
+
+  // and to add the text labels
+  svg
+    .selectAll("text")
+    .data(root.leaves())
+    .enter()
+    .append("text")
+      .attr("x", function(d){ return d.x0+5})    // +10 to adjust position (more right)
+      .attr("y", function(d){ return d.y0+20})    // +20 to adjust position (lower)
+      .text(function(d){ return d.data.name})
+      .attr("font-size", "10px")
+      .attr("fill", "black")
+
+  var legend = d3.select("#legend")
+  var legendWidth = +legend.attr("width");
+  const LEGEND_OFFSET = 10;
+  const LEGEND_RECT_SIZE = 15;
+  const LEGEND_H_SPACING = 150;
+  const LEGEND_V_SPACING = 10;
+  const LEGEND_TEXT_X_OFFSET = 3;
+  const LEGEND_TEXT_Y_OFFSET = -2;
+  var legendElemsPerRow = Math.floor(legendWidth/LEGEND_H_SPACING);
+  
+  var legendElem = legend
+    .append("g")
+    .attr("transform", "translate(60," + LEGEND_OFFSET + ")")
+    .selectAll("g")
+    .data(categories)
+    .enter().append("g")
+    .attr("transform", function(d, i) { 
+      return 'translate(' + 
+      ((i%legendElemsPerRow)*LEGEND_H_SPACING) + ',' + 
+      ((Math.floor(i/legendElemsPerRow))*LEGEND_RECT_SIZE + (LEGEND_V_SPACING*(Math.floor(i/legendElemsPerRow)))) + ')';
+    })
+     
+  legendElem.append("rect")                              
+     .attr('width', LEGEND_RECT_SIZE)                          
+     .attr('height', LEGEND_RECT_SIZE)     
+     .attr('class','legend-item')                 
+     .attr('fill', function(d){
+       return color(d);
+     })
+     
+   legendElem.append("text")                              
+     .attr('x', LEGEND_RECT_SIZE + LEGEND_TEXT_X_OFFSET)                          
+     .attr('y', LEGEND_RECT_SIZE + LEGEND_TEXT_Y_OFFSET)                       
+     .text(function(d) { return d; });  
+
+})
+</script>
+</body>
+</html>
